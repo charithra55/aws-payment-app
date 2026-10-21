@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demo Store</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+body{font-family:sans-serif;background:linear-gradient(135deg,#0f766e,#0e7490,#1e3a8a);min-height:100vh;margin:0;padding:40px 16px;box-sizing:border-box}
+.card{background:#fff;max-width:420px;margin:auto;border-radius:16px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.25);border-top:6px solid #14b8a6}
+h2{color:#0f766e}
+button{width:100%;margin-top:20px;background:#0d9488;color:#fff;border:0;padding:14px;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer}
+button:hover{background:#0f766e}
+button:disabled{opacity:.6;cursor:default}
+#message{color:#dc2626;margin-top:12px;min-height:20px}</style></head><body>
+<div class="card">
+  <h2>DevOps Starter Pack</h2>
+  <p>$20.00 · test mode, no real charge</p>
+  <form id="payment-form">
+    <div id="payment-element"></div>
+    <button id="pay" type="submit">Pay $20.00</button>
+    <div id="message"></div>
+  </form>
+</div>
+<script>
+(async () => {
+  const { publishableKey } = await fetch('/config').then(r => r.json());
+  const stripe = Stripe(publishableKey);
+  const { clientSecret } = await fetch('/create-payment-intent', { method: 'POST' }).then(r => r.json());
+
+  const appearance = { theme: 'stripe', variables: { colorPrimary: '#0d9488', colorText: '#0f172a', borderRadius: '10px' } };
+  const elements = stripe.elements({ clientSecret, appearance });  elements.create('payment').mount('#payment-element');
+
+  const form = document.getElementById('payment-form');
+  const btn = document.getElementById('pay');
+  const msg = document.getElementById('message');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btn.disabled = true; btn.textContent = 'Processing…'; msg.textContent = '';
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      redirect: 'if_required',
+      confirmParams: { return_url: window.location.origin + '/success.html' },
+    });
+
+    if (error) {
+      msg.textContent = error.message;          // e.g. "Your card was declined."
+      btn.disabled = false; btn.textContent = 'Pay $20.00';
+    } else if (paymentIntent.status === 'succeeded') {
+      window.location = '/success.html';
+    }
+  });
+})();
+</script>
+</body></html>
